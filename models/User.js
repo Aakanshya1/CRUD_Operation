@@ -1,9 +1,9 @@
 import conn from "../connection/conn.js";
 
 // Query for user creation
-export const createUser = async (name, email , passwordhash )=>{
-    const query = 'INSERT INTO users (name,email,password) VALUES (?,?,?)';
-    const result = await conn.execute(query,[name, email, passwordhash]);
+export const createUser = async (name, email , passwordhash ,role)=>{
+    const query = 'INSERT INTO users (name,email,password,role) VALUES (?,?,?,?)';
+    const result = await conn.execute(query,[name, email, passwordhash,role]);
     return result;
 }
 

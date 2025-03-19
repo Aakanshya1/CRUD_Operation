@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken"
 import { createUser,findUserByEmail } from "../models/User.js";
 
 export const signup = async(req,res)=>{
-    const {name, email,password,comfirmpassword}=req.body;
+    const {name, email,password,comfirmpassword,role}=req.body;
     if(!name || !email || !password || !comfirmpassword ){
         return res.status(400)
         .json({
@@ -20,7 +20,7 @@ export const signup = async(req,res)=>{
             })
         }
         const passwordhash  = await bcrypt.hash(password,10);
-        const result = await createUser(name, email,passwordhash);
+        const result = await createUser(name, email,passwordhash,role);
          res.status(200)
         .json({
             message:"Signup successfull",
@@ -36,50 +36,54 @@ export const signup = async(req,res)=>{
     }
 }
 
-export const login = async (req, res)=>{
-    const {email, password}= req.body;
-    if(!email ||!password){
-        return res.status(400)
-        .json({
-            message:"All fields are required",
-        })
+export const login = async (req, res,role) => {
+    const { email, password } = req.body;
+
+    // Check for missing fields
+    if (!email || !password) {
+        return res.status(400).json({ message: "All fields are required" });
     }
 
     try {
+        // Find user by email
         const user = await findUserByEmail(email);
-        if(!user){
-            return res.status(400)
-            ,json({
-                message:"User Not found"
-            })
-        }
-        const passmatch = await bcrypt.compare(password, user.password)
-        if(!passmatch){
-            return res.status(400)
-            .json({
-                message:"Invalid Password"
-            })
+        if (!user|| user.role !==role) {
+            return res.status(401).json({ message: "Invalid credentials" });
         }
 
-        const jwttoken = jwt.sign({
-            email:user.email,
-            userid: user.id
-        },process.env.JWT_SECRET,{expiresIn:"1h"}
-    )
+        // Compare passwords
+        const passMatch = await bcrypt.compare(password, user.password);
+        if (!passMatch) {
+            return res.status(401).json({ message: "Invalid password" });
+        }
 
-      res.status(200)
-      .json({
-        message:"Login Successfull",
-        success:true,
-        jwttoken,
-      })
+        // Generate JWT token with role
+        const jwttoken = jwt.sign(
+            {
+                email: user.email,
+                userid: user.id,
+                role: user.role, // Include role for authorization
+            },
+            process.env.JWT_SECRET,
+            { expiresIn: "1h" }
+        );
+
+        // Send response
+        res.status(200).json({
+            message: "Login Successful",
+            success: true,
+            jwttoken,
+        });
 
     } catch (error) {
-        res.status(500)
-        .json({
-            message:"INternal Server Error",
-            success:false
-        })
+        console.error("Login Error:", error);
+        res.status(500).json({
+            message: "Internal Server Error",
+            success: false,
+        });
     }
-}
+};
+export const userLogin = (req, res) => login(req, res, "user");
+export const adminLogin = (req, res) => login(req, res, "admin");
+export const superAdminLogin = (req, res) => login(req, res, "superadmin");
 
